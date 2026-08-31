@@ -1,0 +1,1324 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+config/
+  db.js
+controllers/
+  authController.js
+  OrdersController.js
+  ProductController.js
+  UsersController.js
+middlewares/
+  auth/
+    optionalAuth.js
+    VerifyAuth.js
+  logger.js
+  VerifyErrors.js
+models/
+  Orders.js
+  Product.js
+  Users.js
+routes/
+  auth.js
+  Orders.js
+  Product.js
+  Users.js
+.gitignore
+app.js
+package.json
+seeder.js
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="config/db.js">
+const mongoose = require("mongoose");
+const dotenv = require("dotenv");
+
+dotenv.config();
+
+const connectDB = async () => {
+  try {
+    const conn = await mongoose.connect(process.env.MONGO_URI);
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.error(`Error: ${error.message}`);
+    process.exit(1);
+  }
+};
+
+module.exports = connectDB;
+</file>
+
+<file path="controllers/authController.js">
+const { User, ValidLogin, ValidRegister } = require("../models/Users");
+const asyncHandler = require("express-async-handler");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
+/**
+ * @desc    Register a new user
+ * @route   POST /api/auth/register
+ * @access  Public
+ */
+const registerUser = asyncHandler(async (req, res) => {
+  const { name, phone, address, email } = req.body;
+
+  // Validate the user data
+  const validationError = ValidRegister(req.body);
+  if (validationError) {
+    return res
+      .status(400)
+      .json({ message: validationError.details[0].message });
+  }
+
+  // Check if the user already exists
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    return res.status(400).json({ message: "User already exists" });
+  }
+
+  // Hash the password
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(req.body.password, salt);
+
+  // Create a new user
+  const user = new User({
+    name,
+    phone,
+    address,
+    email,
+    password: hashedPassword,
+  });
+
+  const createdUser = await user.save();
+  const { password, ...userWithoutPassword } = createdUser._doc;
+  // Generate a JWT token
+  const token = jwt.sign(
+    { id: user._id, isAdmin: user.isAdmin },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "1h",
+    },
+  );
+  res.status(201).json({ ...userWithoutPassword, token });
+});
+
+/**
+ * @desc    Login a user
+ * @route   POST /api/auth/login
+ * @access  Public
+ */
+const loginUser = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  // Validate the login data
+  const validationError = ValidLogin(req.body);
+  if (validationError) {
+    return res
+      .status(400)
+      .json({ message: validationError.details[0].message });
+  }
+
+  // Check if the user exists
+  const user = await User.findOne({ email });
+  if (!user) {
+    return res.status(400).json({ message: "Invalid credentials" });
+  }
+
+  // Check if the password is correct
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    return res.status(400).json({ message: "Invalid credentials" });
+  }
+
+  // Generate a JWT token
+  const token = jwt.sign(
+    { id: user._id, isAdmin: user.isAdmin },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "1h",
+    },
+  );
+
+  res.status(200).json({ token });
+});
+
+module.exports = {
+  registerUser,
+  loginUser,
+};
+</file>
+
+<file path="controllers/OrdersController.js">
+const { Order, AddingOrder, updatingOrder } = require("../models/Orders");
+const asyncHandler = require("express-async-handler");
+
+/**
+ * @desc    Get all orders
+ * @route   GET /api/orders
+ * @access  Private
+ */
+const getAllOrders = asyncHandler(async (req, res) => {
+  if (Object.keys(req.query).length === 0) {
+    const orders = await Order.find();
+    const totalOrders = await Order.countDocuments();
+    return res.status(200).json({ orders, totalOrders });
+  }
+  const { userId, productId, status, page, limit } = req.query;
+  const filter = {};
+  if (userId) {
+    filter.userId = userId;
+  }
+  if (productId) {
+    filter.productId = productId;
+  }
+  if (status) {
+    filter.status = status;
+  }
+  const pageNumber = Math.max(1, parseInt(page, 10) || 1);
+  const pageSize = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+  const skip = (pageNumber - 1) * pageSize;
+
+  const [orders, totalOrders] = await Promise.all([
+    Order.find(filter).skip(skip).limit(pageSize),
+    Order.countDocuments(filter),
+  ]);
+  const totalPages = Math.ceil(totalOrders / pageSize);
+
+  res.status(200).json({
+    orders,
+    totalOrders,
+    totalPages,
+    currentPage: pageNumber,
+  });
+});
+
+/**
+ * @desc    Get order by id
+ * @route   GET /api/orders/:id
+ * @access  Private
+ */
+const getOrderById = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id);
+  if (!order) {
+    return res.status(404).json({ message: "Order not found" });
+  }
+  res.status(200).json(order);
+});
+/**
+ * @desc    Update an order by id
+ * @route   PUT /api/orders/:id
+ * @access  Private
+ */
+const updateOrder = asyncHandler(async (req, res) => {
+  const { userId, products, totalPrice, status } = req.body;
+
+  // Validate the order data
+  const validationError = updatingOrder(req.body);
+  if (validationError) {
+    return res
+      .status(400)
+      .json({ message: validationError.details[0].message });
+  }
+
+  const updatedOrder = await Order.findByIdAndUpdate(
+    req.params.id,
+    { $set: { userId, products, totalPrice, status } },
+    { new: true },
+  );
+
+  if (!updatedOrder) {
+    return res.status(404).json({ message: "Order not found" });
+  }
+
+  res.status(200).json(updatedOrder);
+});
+
+/**
+ * @desc    Delete an order by id
+ * @route   DELETE /api/orders/:id
+ * @access  Private
+ */
+const deleteOrder = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id);
+  if (!order) {
+    return res.status(404).json({ message: "Order not found" });
+  }
+
+  await Order.findByIdAndDelete(req.params.id);
+  res.status(200).json({ message: "Order deleted successfully" });
+});
+
+/**
+ * @desc    Create a new order
+ * @route   POST /api/orders
+ * @access  Private
+ */
+const createOrder = asyncHandler(async (req, res) => {
+  const { guestInfo, products, totalPrice, status } = req.body;
+  const userId = req.user ? req.user.id : null;
+  if (userId) {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+  }
+  if (!guestInfo.name || !guestInfo.phone || !guestInfo.address) {
+    return res.status(400).json({ message: "Guest information is required" });
+  }
+
+  // Validate the order data
+  const validationError = AddingOrder(req.body);
+  if (validationError) {
+    return res
+      .status(400)
+      .json({ message: validationError.details[0].message });
+  }
+
+  // Create a new order
+  const order = new Order({
+    userId,
+    guestInfo,
+    products,
+    totalPrice,
+    status,
+  });
+
+  const createdOrder = await order.save();
+  res.status(201).json(createdOrder);
+});
+
+module.exports = {
+  getAllOrders,
+  createOrder,
+  updateOrder,
+  deleteOrder,
+  getOrderById,
+};
+</file>
+
+<file path="controllers/ProductController.js">
+const { Product } = require("../models/Product");
+const { AddingProduct, UpdatingProduct } = require("../models/Product");
+const asyncHandler = require("express-async-handler");
+
+/**
+ * @desc    Get all products
+ * @route   GET /api/products
+ * @access  Public
+ */
+const getAllProducts = asyncHandler(async (req, res) => {
+  if (Object.keys(req.query).length === 0) {
+    const products = await Product.find();
+    return res.status(200).json(products);
+  }
+  const {
+    price,
+    minPrice,
+    maxPrice,
+    category,
+    availableSizes: size,
+    availableColors: color,
+    page,
+    limit,
+    quantity,
+  } = req.query;
+  const filter = {};
+  if (price) {
+    filter.price = Number(price);
+  } else if (minPrice || maxPrice) {
+    filter.price = {};
+
+    if (minPrice) {
+      filter.price.$gte = Number(minPrice);
+    }
+
+    if (maxPrice) {
+      filter.price.$lte = Number(maxPrice);
+    }
+  }
+  if (category) {
+    filter.category = category;
+  }
+  if (size) {
+    filter.availableSizes = size;
+  }
+  if (color) {
+    filter.availableColors = color;
+  }
+  if (quantity) {
+    filter.quantity = Number(quantity);
+  }
+  const pageNumber = Math.max(1, parseInt(page, 10) || 1);
+  const pageSize = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+  const skip = (pageNumber - 1) * pageSize;
+
+  const [products, totalProducts] = await Promise.all([
+    Product.find(filter).skip(skip).limit(pageSize),
+    Product.countDocuments(filter),
+  ]);
+  const totalPages = Math.ceil(totalProducts / pageSize);
+
+  res.status(200).json({
+    products,
+    totalProducts,
+    totalPages,
+    currentPage: pageNumber,
+    pageSize: pageSize,
+  });
+});
+
+/**
+ * @desc    Get product by id
+ * @route   GET /api/products/:id
+ * @access  Public
+ */
+const getProductById = asyncHandler(async (req, res) => {
+  const product = await Product.findById(req.params.id);
+  if (!product) {
+    return res.status(404).json({ message: "Product not found" });
+  }
+  res.status(200).json(product);
+});
+
+/**
+ * @desc    Create a new product
+ * @route   POST /api/products
+ * @access  Private
+ */
+const createProduct = asyncHandler(async (req, res) => {
+  const {
+    name,
+    description,
+    price,
+    image,
+    availableSizes,
+    availableColors,
+    category,
+    quantity,
+  } = req.body;
+
+  // Validate the product data
+  const validationError = AddingProduct(req.body);
+  if (validationError) {
+    return res
+      .status(400)
+      .json({ message: validationError.details[0].message });
+  }
+
+  const product = new Product({
+    name,
+    description,
+    price,
+    image,
+    availableSizes,
+    availableColors,
+    category,
+    quantity,
+  });
+
+  const createdProduct = await product.save();
+  res.status(201).json(createdProduct);
+});
+/**
+ * @desc    Update a product
+ * @route   PUT /api/products/:id
+ * @access  Private
+ */
+const updateProduct = asyncHandler(async (req, res) => {
+  const {
+    name,
+    description,
+    price,
+    image,
+    availableSizes: size,
+    availableColors: color,
+    category,
+    quantity,
+  } = req.body;
+
+  // Validate the product data
+  const validationError = UpdatingProduct(req.body);
+  if (validationError) {
+    return res
+      .status(400)
+      .json({ message: validationError.details[0].message });
+  }
+
+  const product = await Product.findById(req.params.id);
+  if (!product) {
+    return res.status(404).json({ message: "Product not found" });
+  }
+
+  const updatedProduct = await Product.findByIdAndUpdate(
+    req.params.id,
+    {
+      name,
+      description,
+      price,
+      image,
+      availableSizes: size,
+      availableColors: color,
+      category,
+      quantity,
+    },
+    { new: true },
+  );
+
+  res.status(200).json(updatedProduct);
+});
+
+/**
+ * @desc    Delete a product
+ * @route   DELETE /api/products/:id
+ * @access  Private
+ */
+const deleteProduct = asyncHandler(async (req, res) => {
+  const product = await Product.findById(req.params.id);
+  if (!product) {
+    return res.status(404).json({ message: "Product not found" });
+  }
+
+  await Product.findByIdAndDelete(req.params.id);
+  res.status(200).json({
+    message: `Product ${product.name} with id ${req.params.id} has been deleted successfully`,
+  });
+});
+module.exports = {
+  getAllProducts,
+  getProductById,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+};
+</file>
+
+<file path="controllers/UsersController.js">
+const asyncHandler = require("express-async-handler");
+const { User, UpdatingUser } = require("../models/Users");
+
+/**
+ * @desc    Get all users
+ * @route   GET /api/users
+ * @access  Private
+ */
+const getAllUsers = asyncHandler(async (req, res) => {
+  if (Object.keys(req.query).length === 0) {
+    const users = await User.find().select("-password");
+    const totalUsers = await User.countDocuments();
+    return res.status(200).json({ users, totalUsers });
+  }
+  const { name, email, phone, address, isAdmin, page, limit } = req.query;
+  const filter = {};
+  if (name) {
+    filter.name = { $regex: name, $options: "i" };
+  }
+  if (email) {
+    filter.email = email.toLowerCase();
+  }
+  if (phone) {
+    filter.phone = { $regex: phone, $options: "i" };
+  }
+  if (address) {
+    filter.address = { $regex: address, $options: "i" };
+  }
+  if (isAdmin === "true" || isAdmin === "false") {
+    filter.isAdmin = isAdmin === "true";
+  }
+  const pageNumber = Math.max(1, parseInt(page, 10) || 1);
+  const pageSize = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+  const skip = (pageNumber - 1) * pageSize;
+
+  const [users, totalUsers] = await Promise.all([
+    User.find(filter)
+      .skip(skip)
+      .select("-password")
+      .populate("productsOrdered")
+      .populate("productsBought")
+      .limit(pageSize),
+    User.countDocuments(filter),
+  ]);
+
+  res.status(200).json({
+    users,
+    totalUsers,
+    totalPages: Math.ceil(totalUsers / pageSize),
+    currentPage: pageNumber,
+  });
+});
+
+/**
+ * @desc    Get user by id
+ * @route   GET /api/users/:id
+ * @access  Private
+ */
+const getUserById = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id)
+    .populate("productsOrdered")
+    .select("-password")
+    .populate("productsBought");
+  if (!user) {
+    console.log("User not found");
+    return res.status(404).json({ message: "User not found" });
+  }
+  res.status(200).json(user);
+});
+
+/**
+ * @desc    delete user
+ * @route   DELETE /api/users/:id
+ * @access  Private
+ */
+const deleteUser = asyncHandler(async (req, res) => {
+  if (req.user?.id === req.params.id || req.user?.isAdmin === true) {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      console.log("User not found");
+      return res.status(404).json({ message: "User not found" });
+    }
+    await User.findByIdAndDelete(req.params.id);
+    return res.status(200).json({ message: "User removed" });
+  } else {
+    return res.status(403).json({ message: "You Are not Allowed to do that" });
+  }
+});
+/**
+ * @desc    Edit user
+ * @route   PUT /api/users/:id
+ * @access  Private
+ */
+const editUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id).select("-password");
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+  const error = UpdatingUser(req.body);
+  if (error) {
+    return res.status(400).json({ message: error.details[0].message });
+  }
+  const { name, email, phone, address } = req.body;
+  const updatedUser = await User.findByIdAndUpdate(
+    req.params.id,
+    { $set: { name, email, phone, address } },
+    { new: true },
+  );
+  if (!updatedUser) {
+    return res.status(404).json({ message: "User not found" });
+  }
+  res.status(200).json(updatedUser);
+});
+module.exports = {
+  getAllUsers,
+  getUserById,
+  deleteUser,
+  editUser,
+};
+</file>
+
+<file path="middlewares/auth/optionalAuth.js">
+
+</file>
+
+<file path="middlewares/auth/VerifyAuth.js">
+const jwt = require("jsonwebtoken");
+
+const verifyAuth = (req, res, next) => {
+  const token = req.headers.token;
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = decoded;
+      next();
+    } catch (err) {
+      return res.status(401).json({ message: "invalid Token" });
+    }
+  } else {
+    return res.status(401).json({ message: "Token not found" });
+  }
+};
+const verifyAdmin = (req, res, next) => {
+  verifyAuth(req, res, () => {
+    if (req.user?.isAdmin === true) {
+      next();
+    } else {
+      return res
+        .status(403)
+        .json({ message: "You are not allowed to do that" });
+    }
+  });
+};
+
+module.exports = { verifyAuth, verifyAdmin };
+</file>
+
+<file path="middlewares/logger.js">
+const looger = (req, res, next) => {
+  console.log(
+    `${req.method} : ${req.protocol}://${req.get("host")}${req.originalUrl} `,
+  );
+  next();
+};
+
+module.exports = looger;
+</file>
+
+<file path="middlewares/VerifyErrors.js">
+const NotFound = (req, res, next) => {
+  const error = new Error(`${req.originalUrl} Not found`);
+  res.status(404);
+  next(error);
+};
+const VerifyErrors = (err, req, res, next) => {
+  const statuscode = res.statusCode === 200 ? 500 : res.statusCode;
+  res
+    .status(statuscode)
+    .json({ message: err.message || "Internal Server Error" });
+};
+module.exports = { NotFound, VerifyErrors };
+</file>
+
+<file path="models/Orders.js">
+const mongoose = require("mongoose");
+const joi = require("joi");
+
+const OrdersSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    guestInfo: {
+      name: {
+        type: String,
+        required: true,
+      },
+      email: {
+        type: String,
+      },
+      phone: {
+        type: String,
+        required: true,
+      },
+      address: {
+        type: String,
+        required: true,
+      },
+      required: false,
+    },
+    products: [
+      {
+        productId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Product",
+          required: true,
+        },
+        quantity: {
+          type: Number,
+          required: true,
+          min: 1,
+        },
+        chosenSize: {
+          type: String,
+          required: true,
+        },
+        chosenColor: {
+          type: String,
+          required: true,
+        },
+      },
+    ],
+    totalPrice: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    status: {
+      type: String,
+      enum: ["pending", "shipped", "delivered", "cancelled"],
+      default: "pending",
+    },
+  },
+  { timestamps: true },
+);
+const Order = mongoose.model("Order", OrdersSchema);
+
+const updatingOrder = (order) => {
+  const orderValidationSchema = joi.object({
+    userId: joi.string(),
+    guestInfo: joi.object({
+      name: joi.string(),
+      email: joi.string().email().lowercase(),
+      phone: joi.string(),
+      address: joi.string(),
+    }),
+    products: joi.array().items(
+      joi.object({
+        productId: joi.string(),
+        quantity: joi.number().min(1),
+        chosenSize: joi.string(),
+        chosenColor: joi.string(),
+      }),
+    ),
+    totalPrice: joi.number().min(0),
+    status: joi.string().valid("pending", "shipped", "delivered", "cancelled"),
+  });
+  const { error } = orderValidationSchema.validate(order);
+  return error;
+};
+
+const AddingOrder = (order) => {
+  const orderValidationSchema = joi.object({
+    userId: joi.string().required(),
+    guestInfo: joi.object({
+      name: joi.string().required(),
+      email: joi.string().email().lowercase(),
+      phone: joi.string().required(),
+      address: joi.string().required(),
+    }),
+    products: joi.array().items(
+      joi.object({
+        productId: joi.string().required(),
+        quantity: joi.number().min(1).required(),
+        chosenSize: joi.string().required(),
+        chosenColor: joi.string().required(),
+      }),
+    ),
+    totalPrice: joi.number().min(0).required(),
+    status: joi.string().valid("pending", "shipped", "delivered", "cancelled"),
+  });
+  const { error } = orderValidationSchema.validate(order);
+  return error;
+};
+
+module.exports = { Order, AddingOrder, updatingOrder };
+</file>
+
+<file path="models/Product.js">
+const mongoose = require("mongoose");
+const joi = require("joi");
+
+const ProductSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      minlength: 2,
+      maxlength: 100,
+      trim: true,
+    },
+    description: {
+      type: String,
+      minlength: 2,
+      maxlength: 1000,
+      trim: true,
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    image: {
+      type: String,
+      default: "https://via.placeholder.com/150",
+      trim: true,
+    },
+    size: {
+      type: String,
+      enum: ["S", "M", "L", "XL", "XXL", "XXXL"],
+      required: true,
+    },
+    color: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    category: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    quantity: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+    },
+  },
+  { timestamps: true },
+);
+const Product = mongoose.model("Product", ProductSchema);
+
+const AddingProduct = (product) => {
+  const productValidationSchema = joi.object({
+    name: joi.string().min(2).max(100).trim().required(),
+    description: joi.string().min(2).max(1000).trim(),
+    price: joi.number().min(0).required(),
+    image: joi.string().trim(),
+    size: joi.string().valid("S", "M", "L", "XL", "XXL", "XXXL").required(),
+    color: joi.string().trim().required(),
+    category: joi.string().trim().required(),
+    quantity: joi.number().min(0).default(0),
+  });
+  const { error } = productValidationSchema.validate(product);
+  return error;
+};
+
+const UpdatingProduct = (product) => {
+  const productValidationSchema = joi.object({
+    name: joi.string().min(2).max(100).trim(),
+    description: joi.string().min(2).max(1000).trim(),
+    price: joi.number().min(0),
+    image: joi.string().trim(),
+    size: joi.string().valid("S", "M", "L", "XL", "XXL", "XXXL"),
+    color: joi.string().trim(),
+    category: joi.string().trim(),
+    quantity: joi.number().min(0).default(0),
+  });
+  const { error } = productValidationSchema.validate(product);
+  return error;
+};
+module.exports = { Product, AddingProduct, UpdatingProduct };
+</file>
+
+<file path="models/Users.js">
+const mongoose = require("mongoose");
+const joi = require("joi");
+const passwordComplexity = require("joi-password-complexity");
+
+const UsersSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      minlength: 2,
+      maxlength: 100,
+      trim: true,
+    },
+    email: {
+      type: String,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    phone: {
+      type: String,
+      minlength: 10,
+      maxlength: 15,
+      trim: true,
+    },
+    address: {
+      type: String,
+      minlength: 5,
+      maxlength: 200,
+      trim: true,
+    },
+    isAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    productsOrdered: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
+      },
+    ],
+    productsBought: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
+      },
+    ],
+  },
+  { timestamps: true },
+);
+
+const User = mongoose.model("User", UsersSchema);
+
+// const AddingUser = (user) => {
+//   const userValidationSchema = joi.object({
+//     name: joi.string().min(2).max(100).trim().required(),
+//     email: joi.string().email().trim().lowercase().required(),
+//     phone: joi.string().min(10).max(15).trim().required(),
+//     address: joi.string().min(5).max(200).trim().required(),
+//   });
+//   const { error } = userValidationSchema.validate(user);
+//   return error;
+// };
+
+const UpdatingUser = (user) => {
+  const userValidationSchema = joi.object({
+    name: joi.string().min(2).max(100).trim(),
+    email: joi.string().email().trim().lowercase(),
+    phone: joi.string().min(10).max(15).trim(),
+    address: joi.string().min(5).max(200).trim(),
+  });
+  const { error } = userValidationSchema.validate(user);
+  return error;
+};
+// AUTH
+const ValidLogin = (user) => {
+  const loginValidationSchema = joi.object({
+    email: joi.string().email().trim().lowercase().required(),
+    password: passwordComplexity().required(),
+  });
+  const { error } = loginValidationSchema.validate(user);
+  return error;
+};
+const ValidRegister = (user) => {
+  const registerValidationSchema = joi.object({
+    name: joi.string().min(2).max(100).trim().required(),
+    phone: joi.string().min(10).max(15).trim(),
+    address: joi.string().min(5).max(200).trim(),
+    email: joi.string().email().trim().lowercase().required(),
+    password: passwordComplexity().required(),
+  });
+  const { error } = registerValidationSchema.validate(user);
+  return error;
+};
+
+module.exports = { User, UpdatingUser, ValidLogin, ValidRegister };
+</file>
+
+<file path="routes/auth.js">
+const express = require("express");
+const router = express.Router();
+const { registerUser, loginUser } = require("../controllers/authController");
+
+router.route("/login").post(loginUser);
+router.route("/register").post(registerUser);
+
+module.exports = router;
+</file>
+
+<file path="routes/Orders.js">
+const express = require("express");
+const router = express.Router();
+const {
+  getAllOrders,
+  getOrderById,
+  createOrder,
+  updateOrder,
+  deleteOrder,
+} = require("../controllers/OrdersController");
+const { verifyAdmin } = require("../middlewares/auth/VerifyAuth");
+const { optionalAuth } = require("../middlewares/auth/optionalAuth");
+
+// GET all orders AND MAKE an order
+router
+  .route("/")
+  .get(verifyAdmin, getAllOrders)
+  .post(optionalAuth, createOrder);
+
+// GET, UPDATE, DELETE an order by ID
+router
+  .route("/:id")
+  .get(verifyAdmin, getOrderById)
+  .put(verifyAdmin, updateOrder)
+  .delete(verifyAdmin, deleteOrder);
+
+module.exports = router;
+</file>
+
+<file path="routes/Product.js">
+const express = require("express");
+const router = express.Router();
+const {
+  getAllProducts,
+  getProductById,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+} = require("../controllers/ProductController");
+const { verifyAdmin } = require("../middlewares/auth/VerifyAuth");
+
+// GET all products
+router.route("/").get(getAllProducts).post(verifyAdmin, createProduct);
+
+// GET, UPDATE, DELETE a product by ID
+router
+  .route("/:id")
+  .get(getProductById)
+  .put(verifyAdmin, updateProduct)
+  .delete(verifyAdmin, deleteProduct);
+
+module.exports = router;
+</file>
+
+<file path="routes/Users.js">
+const express = require("express");
+const router = express.Router();
+const {
+  getAllUsers,
+  getUserById,
+  deleteUser,
+  editUser,
+} = require("../controllers/UsersController");
+const { verifyAuth, verifyAdmin } = require("../middlewares/auth/VerifyAuth");
+
+router.route("/").get(getAllUsers);
+router
+  .route("/:id")
+  .get(verifyAdmin, getUserById)
+  .delete(verifyAuth, deleteUser)
+  .put(verifyAdmin, editUser);
+
+module.exports = router;
+</file>
+
+<file path=".gitignore">
+.env
+node_modules
+</file>
+
+<file path="app.js">
+const express = require("express");
+const app = express();
+const connectDB = require("./config/db");
+const { NotFound, VerifyErrors } = require("./middlewares/VerifyErrors");
+require("dotenv").config();
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+
+//CALIING MIDDLEWARES
+const logger = require("./middlewares/logger");
+app.use(logger);
+
+// Connect to database
+connectDB();
+
+// Routes
+app.use("/api/products", require("./routes/Product"));
+app.use("/api/users", require("./routes/Users"));
+app.use("/api/auth", require("./routes/auth"));
+
+// CALLING MIDDLEWARES
+app.use(NotFound);
+app.use(VerifyErrors);
+
+app.listen(process.env.PORT, () => {
+  console.log("Server is running on port " + process.env.PORT);
+});
+</file>
+
+<file path="package.json">
+{
+  "name": "clothing-shop-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-async-handler": "^1.2.0",
+    "helmet": "^8.3.0",
+    "joi": "^18.2.5",
+    "joi-password-complexity": "^5.2.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.9.4",
+    "multer": "^2.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
+</file>
+
+<file path="seeder.js">
+const { Product } = require("./models/Product");
+const connectDB = require("./config/db");
+const products = [
+  {
+    name: "Product 1",
+    description: "Description for Product 1",
+    price: 19.99,
+    image: "https://via.placeholder.com/150",
+    size: "M",
+    color: "Red",
+    category: "Category 1",
+  },
+  {
+    name: "Product 2",
+    description: "Description for Product 2",
+    price: 29.99,
+    image: "https://via.placeholder.com/150",
+    size: "L",
+    color: "Blue",
+    category: "Category 2",
+  },
+  {
+    name: "Product 3",
+    description: "Description for Product 3",
+    price: 39.99,
+    image: "https://via.placeholder.com/150",
+    size: "XL",
+    color: "Green",
+    category: "Category 3",
+  },
+  {
+    name: "Product 4",
+    description: "Description for Product 4",
+    price: 49.99,
+    image: "https://via.placeholder.com/150",
+    size: "S",
+    color: "Yellow",
+    category: "Category 3",
+  },
+  {
+    name: "Product 5",
+    description: "Description for Product 5",
+    price: 59.99,
+    image: "https://via.placeholder.com/150",
+    size: "L",
+    color: "Blue",
+    category: "Category 2",
+  },
+  {
+    name: "Product 6",
+    description: "Description for Product 6",
+    price: 69.99,
+    image: "https://via.placeholder.com/150",
+    size: "XXXL",
+    color: "Green",
+    category: "Category 1",
+  },
+  {
+    name: "Product 7",
+    description: "Description for Product 7",
+    price: 79.99,
+    image: "https://via.placeholder.com/150",
+    size: "XXL",
+    color: "Red",
+    category: "Category 4",
+  },
+  {
+    name: "Product 8",
+    description: "Description for Product 8",
+    price: 89.99,
+    image: "https://via.placeholder.com/150",
+    size: "XXXL",
+    color: "Green",
+    category: "Category 5",
+  },
+  {
+    name: "Product 9",
+    description: "Description for Product 9",
+    price: 99.99,
+    image: "https://via.placeholder.com/150",
+    size: "XL",
+    color: "Green",
+    category: "Category 6",
+  },
+  {
+    name: "Product 10",
+    description: "Description for Product 10",
+    price: 109.99,
+    image: "https://via.placeholder.com/150",
+    size: "XL",
+    color: "Purple",
+    category: "Category 3",
+  },
+  {
+    name: "Product 11",
+    description: "Description for Product 11",
+    price: 119.99,
+    image: "https://via.placeholder.com/150",
+    size: "XL",
+    color: "Black",
+    category: "Category 4",
+  },
+  {
+    name: "Product 12",
+    description: "Description for Product 12",
+    price: 129.99,
+    image: "https://via.placeholder.com/150",
+    size: "XL",
+    color: "White",
+    category: "Category 9",
+  },
+];
+
+const AddProducts = async () => {
+  try {
+    await Product.insertMany(products);
+    console.log("Products added successfully");
+  } catch (error) {
+    console.error("Error adding products:", error);
+  }
+};
+
+const RemoveProducts = async () => {
+  try {
+    await Product.deleteMany({});
+    console.log("Products removed successfully");
+  } catch (error) {
+    console.error("Error removing products:", error);
+  }
+};
+
+if (process.argv[2] === "-delete") {
+  connectDB()
+    .then(() => RemoveProducts())
+    .then(() => process.exit());
+} else if (process.argv[2] === "-add") {
+  connectDB()
+    .then(() => AddProducts())
+    .then(() => process.exit());
+}
+</file>
+
+</files>

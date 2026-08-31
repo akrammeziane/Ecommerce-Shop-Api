@@ -1,0 +1,230 @@
+const { Order, ValidatingOrder, updatingOrder } = require("../models/Orders");
+const asyncHandler = require("express-async-handler");
+const { User } = require("../models/Users");
+const { Product } = require("../models/Product");
+
+/**
+ * @desc    Get all orders
+ * @route   GET /api/orders
+ * @access  Private
+ */
+const getAllOrders = asyncHandler(async (req, res) => {
+  if (Object.keys(req.query).length === 0) {
+    const orders = await Order.find();
+    const totalOrders = await Order.countDocuments();
+    return res.status(200).json({ orders, totalOrders });
+  }
+  const { userId, guestPhone, productId, status, page, limit } = req.query;
+  const filter = {};
+  if (userId) {
+    filter.userId = userId;
+  }
+  if (guestPhone) {
+    filter["guestInfo.phone"] = guestPhone;
+  }
+  if (productId) {
+    filter["products.productId"] = productId;
+  }
+  if (status) {
+    filter.status = status;
+  }
+  const pageNumber = Math.max(1, parseInt(page, 10) || 1);
+  const pageSize = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+  const skip = (pageNumber - 1) * pageSize;
+
+  const [orders, totalOrders] = await Promise.all([
+    Order.find(filter).skip(skip).limit(pageSize),
+    Order.countDocuments(filter),
+  ]);
+  const totalPages = Math.ceil(totalOrders / pageSize);
+
+  res.status(200).json({
+    orders,
+    totalOrders,
+    totalPages,
+    currentPage: pageNumber,
+  });
+});
+
+/**
+ * @desc    Get order by id
+ * @route   GET /api/orders/:id
+ * @access  Private
+ */
+const getOrderById = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id);
+  if (!order) {
+    return res.status(404).json({ message: "Order not found" });
+  }
+  res.status(200).json(order);
+});
+/**
+ * @desc    Update an order by id
+ * @route   PUT /api/orders/:id
+ * @access  Private
+ */
+const updateOrder = asyncHandler(async (req, res) => {
+  const { userId, guestInfo, products, totalPrice, status } = req.body;
+
+  // Validate the order data
+  const validationError = updatingOrder(req.body);
+  if (validationError) {
+    return res
+      .status(400)
+      .json({ message: validationError.details[0].message });
+  }
+
+  const updatedOrder = await Order.findByIdAndUpdate(
+    req.params.id,
+    { $set: { userId, guestInfo, products, totalPrice, status } },
+    { new: true },
+  );
+
+  if (!updatedOrder) {
+    return res.status(404).json({ message: "Order not found" });
+  }
+  if (updatedOrder.status === "cancelled") {
+    for (const product of updatedOrder.products) {
+      await Product.findByIdAndUpdate(
+        product.productId,
+        { $inc: { quantity: product.quantity } },
+        { new: true },
+      );
+    }
+  }
+  if (userId && updatedOrder.status === "delivered") {
+    for (let i = 0; i < updatedOrder.products.length; i++) {
+      await User.findByIdAndUpdate(
+        userId,
+        { $push: { productsBought: updatedOrder.products[i].productId } },
+        { new: true },
+      );
+    }
+  }
+
+  res.status(200).json(updatedOrder);
+});
+
+/**
+ * @desc    Delete an order by id
+ * @route   DELETE /api/orders/:id
+ * @access  Private
+ */
+const deleteOrder = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id);
+  if (!order) {
+    return res.status(404).json({ message: "Order not found" });
+  }
+
+  await Order.findByIdAndDelete(req.params.id);
+  res.status(200).json({ message: "Order deleted successfully" });
+});
+
+/**
+ * @desc    Create a new order
+ * @route   POST /api/orders
+ * @access  Private
+ */
+const createOrder = asyncHandler(async (req, res) => {
+  const { guestInfo, products, status } = req.body;
+  const userId = req.user ? req.user.id : null;
+  if (userId) {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+  }
+  if (
+    !userId &&
+    (!guestInfo || !guestInfo.name || !guestInfo.phone || !guestInfo.address)
+  ) {
+    return res.status(400).json({ message: "Guest information is required" });
+  }
+  // Validate the order data
+  const validationError = ValidatingOrder(req.body);
+  if (validationError) {
+    return res
+      .status(400)
+      .json({ message: validationError.details[0].message });
+  }
+  if (products.length === 0) {
+    return res.status(400).json({ message: "Products array cannot be empty" });
+  }
+  let totalprice = 0;
+  for (const product of products) {
+    if (
+      !product.productId ||
+      !product.quantity ||
+      !product.chosenSize ||
+      !product.chosenColor
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Product information is incomplete" });
+    }
+    const productExists = await Product.findById(product.productId);
+    if (!productExists) {
+      return res
+        .status(404)
+        .json({ message: `Product with id ${product.productId} not found` });
+    }
+    if (product.quantity > productExists.quantity) {
+      return res.status(400).json({
+        message: `Not enough stock for product with id ${product.productId}`,
+      });
+    }
+    if (
+      product.chosenSize &&
+      !productExists.availableSizes.includes(product.chosenSize)
+    ) {
+      return res.status(400).json({
+        message: `Chosen size ${product.chosenSize} is not available for product with id ${product.productId}`,
+      });
+    }
+    if (
+      product.chosenColor &&
+      !productExists.availableColors.includes(product.chosenColor)
+    ) {
+      return res.status(400).json({
+        message: `Chosen color ${product.chosenColor} is not available for product with id ${product.productId}`,
+      });
+    }
+    totalprice += productExists.price * product.quantity;
+  }
+
+  // Create a new order
+  const order = new Order({
+    userId,
+    guestInfo,
+    products,
+    totalPrice: totalprice.toFixed(2),
+    status,
+  });
+
+  const createdOrder = await order.save();
+  for (const product of products) {
+    await Product.findByIdAndUpdate(
+      product.productId,
+      { $inc: { quantity: -product.quantity } },
+      { new: true },
+    );
+  }
+  if (userId) {
+    for (let i = 0; i < products.length; i++) {
+      await User.findByIdAndUpdate(
+        userId,
+        { $push: { productsOrdered: createdOrder.products[i].productId } },
+        { new: true },
+      );
+    }
+  }
+  res.status(201).json(createdOrder);
+});
+
+module.exports = {
+  getAllOrders,
+  createOrder,
+  updateOrder,
+  deleteOrder,
+  getOrderById,
+};
