@@ -73,6 +73,11 @@ const updateOrder = asyncHandler(async (req, res) => {
       .status(400)
       .json({ message: validationError.details[0].message });
   }
+  const exsistingOrder = await Order.findById(req.params.id);
+  if (!exsistingOrder) {
+    return res.status(404).json({ message: "Order not found" });
+  }
+  const previousStatus = exsistingOrder.status;
 
   const updatedOrder = await Order.findByIdAndUpdate(
     req.params.id,
@@ -83,7 +88,7 @@ const updateOrder = asyncHandler(async (req, res) => {
   if (!updatedOrder) {
     return res.status(404).json({ message: "Order not found" });
   }
-  if (updatedOrder.status === "cancelled") {
+  if (previousStatus !== "cancelled" && status === "cancelled") {
     for (const product of updatedOrder.products) {
       await Product.findByIdAndUpdate(
         product.productId,
@@ -92,7 +97,7 @@ const updateOrder = asyncHandler(async (req, res) => {
       );
     }
   }
-  if (userId && updatedOrder.status === "delivered") {
+  if (userId && status ==="delivered" && previousStatus!== "delivered") {
     for (let i = 0; i < updatedOrder.products.length; i++) {
       await User.findByIdAndUpdate(
         userId,
