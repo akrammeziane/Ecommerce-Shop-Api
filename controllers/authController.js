@@ -88,7 +88,7 @@ const loginUser = asyncHandler(async (req, res) => {
     },
   );
 
-  res.status(200).json({ token });
+  res.status(200).json({ token, user });
 });
 
 module.exports = {
