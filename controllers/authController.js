@@ -1,4 +1,4 @@
-const { User, ValidLogin, ValidRegister } = require("../models/Users");
+const { User, ValidRegister } = require("../models/Users");
 const asyncHandler = require("express-async-handler");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -59,14 +59,6 @@ const registerUser = asyncHandler(async (req, res) => {
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  // Validate the login data
-  const validationError = ValidLogin(req.body);
-  if (validationError) {
-    return res
-      .status(400)
-      .json({ message: validationError.details[0].message });
-  }
-
   // Check if the user exists
   const user = await User.findOne({ email });
   if (!user) {
@@ -92,6 +84,6 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
-  registerUser, 
+  registerUser,
   loginUser,
 };
