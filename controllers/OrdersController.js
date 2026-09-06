@@ -131,8 +131,8 @@ const deleteOrder = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const createOrder = asyncHandler(async (req, res) => {
-  const { guestInfo, products, status } = req.body;
-  const userId = req.user ? req.user.id : null;
+  const { userId: bodyUserId , guestInfo, products, status } = req.body;
+  const userId = req.user ? req.user.id : bodyUserId;
   if (userId) {
     const user = await User.findById(userId);
     if (!user) {
