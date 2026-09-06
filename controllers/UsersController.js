@@ -76,9 +76,9 @@ const deleteUser = asyncHandler(async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
     await User.findByIdAndDelete(req.params.id);
-    return res.status(200).json({ message: "User removed" });
+    return res.status(200).json({ _id : req.params.id , message: "User removed" });
   } else {
-    return res.status(403).json({ message: "You Are not Allowed to do that" });
+    return res.status(403).json({  message: "You Are not Allowed to do that" });
   }
 });
 /**
