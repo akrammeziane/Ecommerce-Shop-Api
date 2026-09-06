@@ -153,6 +153,7 @@ const updateProduct = asyncHandler(async (req, res) => {
   const updatedProduct = await Product.findByIdAndUpdate(
     req.params.id,
     {
+      $set:{
       name,
       description,
       price,
@@ -161,6 +162,7 @@ const updateProduct = asyncHandler(async (req, res) => {
       availableColors: color,
       category,
       quantity,
+      }
     },
     { new: true },
   );
@@ -181,6 +183,7 @@ const deleteProduct = asyncHandler(async (req, res) => {
 
   await Product.findByIdAndDelete(req.params.id);
   res.status(200).json({
+    _id:req.params.id,
     message: `Product ${product.name} with id ${req.params.id} has been deleted successfully`,
   });
 });
