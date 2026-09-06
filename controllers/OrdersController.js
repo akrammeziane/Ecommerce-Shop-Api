@@ -122,7 +122,7 @@ const deleteOrder = asyncHandler(async (req, res) => {
   }
 
   await Order.findByIdAndDelete(req.params.id);
-  res.status(200).json({ message: "Order deleted successfully" });
+  res.status(200).json({ _id:req.params.id , message: "Order deleted successfully" });
 });
 
 /**
