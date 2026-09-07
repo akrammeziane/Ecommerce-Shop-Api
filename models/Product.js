@@ -37,7 +37,7 @@ const ProductSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ["T-Shirts", "Jackets", "Pants", "Hoodies", "Accessories"],
+      enum: ["T-Shirts", "Jackets", "Pants", "Hoodies", "Accessories","Shoes"],
       required: true,
       trim: true,
     },
@@ -63,7 +63,7 @@ const AddingProduct = (product) => {
       .items(joi.string().valid("S", "M", "L", "XL", "XXL", "XXXL"))
       .required(),
     availableColors: joi.array().items(joi.string().trim()).required(),
-    category: joi.string().trim().required(),
+    category: joi.string().trim().valid("T-Shirts", "Jackets", "Pants", "Hoodies", "Accessories","Shoes").required(),
     quantity: joi.number().min(0).default(0),
   });
   const { error } = productValidationSchema.validate(product);
@@ -80,7 +80,7 @@ const UpdatingProduct = (product) => {
       .array()
       .items(joi.string().valid("S", "M", "L", "XL", "XXL", "XXXL")),
     availableColors: joi.array().items(joi.string().trim()),
-    category: joi.string().trim(),
+    category: joi.string().trim().valid("T-Shirts", "Jackets", "Pants", "Hoodies", "Accessories","Shoes"),
     quantity: joi.number().min(0).default(0),
   });
   const { error } = productValidationSchema.validate(product);
