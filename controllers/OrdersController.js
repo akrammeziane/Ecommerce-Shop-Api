@@ -10,7 +10,9 @@ const { Product } = require("../models/Product");
  */
 const getAllOrders = asyncHandler(async (req, res) => {
   if (Object.keys(req.query).length === 0) {
-    const orders = await Order.find();
+    const orders = await Order.find()
+      .populate("userId", "name email phone address")
+      .populate("products.productId", "name price image");
     const totalOrders = await Order.countDocuments();
     return res.status(200).json({ orders, totalOrders });
   }
@@ -97,7 +99,7 @@ const updateOrder = asyncHandler(async (req, res) => {
       );
     }
   }
-  if (userId && status ==="delivered" && previousStatus!== "delivered") {
+  if (userId && status === "delivered" && previousStatus !== "delivered") {
     for (let i = 0; i < updatedOrder.products.length; i++) {
       await User.findByIdAndUpdate(
         userId,
@@ -122,7 +124,9 @@ const deleteOrder = asyncHandler(async (req, res) => {
   }
 
   await Order.findByIdAndDelete(req.params.id);
-  res.status(200).json({ _id:req.params.id , message: "Order deleted successfully" });
+  res
+    .status(200)
+    .json({ _id: req.params.id, message: "Order deleted successfully" });
 });
 
 /**
@@ -131,7 +135,7 @@ const deleteOrder = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const createOrder = asyncHandler(async (req, res) => {
-  const { userId: bodyUserId , guestInfo, products, status } = req.body;
+  const { userId: bodyUserId, guestInfo, products, status } = req.body;
   const userId = req.user ? req.user.id : bodyUserId;
   if (userId) {
     const user = await User.findById(userId);
