@@ -209,22 +209,23 @@ const createOrder = asyncHandler(async (req, res) => {
 
   // Create a new order
   const order = new Order({
-    userId,
+    userId: userId || null,
     guestInfo,
     products,
-    totalPrice: totalprice.toFixed(2),
+    totalPrice: Number(totalprice.toFixed(2)),
     status,
   });
 
-  const createdOrder = await order.save();
+  await order.save();
+  const createdOrder = await order
+    .populate("userId", "name email phone address")
+    .populate("products.productId", "name price image");
   for (const product of products) {
     await Product.findByIdAndUpdate(
       product.productId,
       { $inc: { quantity: -product.quantity } },
       { new: true },
-    )
-      .populate("userId", "name email phone address")
-      .populate("products.productId", "name price image");
+    );
   }
   if (userId) {
     for (let i = 0; i < products.length; i++) {
@@ -232,9 +233,7 @@ const createOrder = asyncHandler(async (req, res) => {
         userId,
         { $push: { productsOrdered: createdOrder.products[i].productId } },
         { new: true },
-      )
-        .populate("userId", "name email phone address")
-        .populate("products.productId", "name price image");
+      );
     }
   }
   res.status(201).json(createdOrder);
