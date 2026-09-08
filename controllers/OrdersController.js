@@ -98,9 +98,7 @@ const updateOrder = asyncHandler(async (req, res) => {
         product.productId,
         { $inc: { quantity: product.quantity } },
         { new: true },
-      )
-        .populate("userId", "name email phone address")
-        .populate("products.productId", "name price image");
+      );
     }
   }
   if (userId && status === "delivered" && previousStatus !== "delivered") {
@@ -109,9 +107,7 @@ const updateOrder = asyncHandler(async (req, res) => {
         userId,
         { $push: { productsBought: updatedOrder.products[i].productId } },
         { new: true },
-      )
-        .populate("userId", "name email phone address")
-        .populate("products.productId", "name price image");
+      );
     }
   }
 
