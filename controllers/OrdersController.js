@@ -36,7 +36,7 @@ const getAllOrders = asyncHandler(async (req, res) => {
 
   const [orders, totalOrders] = await Promise.all([
     Order.find(filter).skip(skip).limit(pageSize),
-    Order.countDocuments(filter),
+    Order.countDocuments(),
   ]);
   const totalPages = Math.ceil(totalOrders / pageSize);
 
