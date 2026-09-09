@@ -13,6 +13,7 @@ const getAllProducts = asyncHandler(async (req, res) => {
     return res.status(200).json(products);
   }
   const {
+    status,
     name,
     id,
     price,
@@ -28,6 +29,9 @@ const getAllProducts = asyncHandler(async (req, res) => {
   const filter = {};
   if (name) {
     filter.name = { $regex: name, $options: "i" };
+  }
+  if (status) {
+    filter.status = status;
   }
   if (id) {
     filter._id = id;
@@ -128,6 +132,7 @@ const createProduct = asyncHandler(async (req, res) => {
     availableColors,
     category,
     quantity,
+    status: quantity > 0 ? "In Stock" : "Out Of Stock",
   });
 
   const createdProduct = await product.save();
@@ -175,6 +180,7 @@ const updateProduct = asyncHandler(async (req, res) => {
         availableColors: color,
         category,
         quantity,
+        status: quantity > 0 ? "In Stock" : "Out Of Stock",
       },
     },
     { new: true },

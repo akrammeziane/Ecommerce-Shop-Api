@@ -37,7 +37,7 @@ const ProductSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ["T-Shirts", "Jackets", "Pants", "Hoodies", "Accessories","Shoes"],
+      enum: ["T-Shirts", "Jackets", "Pants", "Hoodies", "Accessories", "Shoes"],
       required: true,
       trim: true,
     },
@@ -46,6 +46,11 @@ const ProductSchema = new mongoose.Schema(
       required: true,
       min: 0,
       default: 0,
+    },
+    status: {
+      type: String,
+      enum: ["Out Of Stock", "In Stock"],
+      default: "In Stock",
     },
   },
   { timestamps: true },
@@ -63,8 +68,13 @@ const AddingProduct = (product) => {
       .items(joi.string().valid("S", "M", "L", "XL", "XXL", "XXXL"))
       .required(),
     availableColors: joi.array().items(joi.string().trim()).required(),
-    category: joi.string().trim().valid("T-Shirts", "Jackets", "Pants", "Hoodies", "Accessories","Shoes").required(),
+    category: joi
+      .string()
+      .trim()
+      .valid("T-Shirts", "Jackets", "Pants", "Hoodies", "Accessories", "Shoes")
+      .required(),
     quantity: joi.number().min(0).default(0),
+    status: joi.string().valid("Out Of Stock", "In Stock").default("In Stock"),
   });
   const { error } = productValidationSchema.validate(product);
   return error;
@@ -80,8 +90,12 @@ const UpdatingProduct = (product) => {
       .array()
       .items(joi.string().valid("S", "M", "L", "XL", "XXL", "XXXL")),
     availableColors: joi.array().items(joi.string().trim()),
-    category: joi.string().trim().valid("T-Shirts", "Jackets", "Pants", "Hoodies", "Accessories","Shoes"),
+    category: joi
+      .string()
+      .trim()
+      .valid("T-Shirts", "Jackets", "Pants", "Hoodies", "Accessories", "Shoes"),
     quantity: joi.number().min(0).default(0),
+    status: joi.string().valid("Out Of Stock", "In Stock").default("In Stock"),
   });
   const { error } = productValidationSchema.validate(product);
   return error;
