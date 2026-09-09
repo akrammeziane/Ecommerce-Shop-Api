@@ -13,6 +13,8 @@ const getAllProducts = asyncHandler(async (req, res) => {
     return res.status(200).json(products);
   }
   const {
+    name,
+    id,
     price,
     minPrice,
     maxPrice,
@@ -24,6 +26,12 @@ const getAllProducts = asyncHandler(async (req, res) => {
     quantity,
   } = req.query;
   const filter = {};
+  if (name) {
+    filter.name = { $regex: name, $options: "i" };
+  }
+  if (id) {
+    filter._id = id;
+  }
   if (price) {
     filter.price = Number(price);
   } else if (minPrice || maxPrice) {
