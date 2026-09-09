@@ -126,8 +126,23 @@ const deleteOrder = asyncHandler(async (req, res) => {
   if (!order) {
     return res.status(404).json({ message: "Order not found" });
   }
+  const deletedOrder = await Order.findByIdAndDelete(req.params.id);
 
-  await Order.findByIdAndDelete(req.params.id);
+  if (!deletedOrder) {
+    return res.status(404).json({ message: "Order not found" });
+  }
+
+  if (deletedOrder.products && deletedOrder.products.length > 0) {
+    const updatedPromises = deletedOrder.products.map((product) =>
+      Product.findByIdAndUpdate(
+        product.productId,
+        { $inc: { quantity: product.quantity } },
+        { new: true },
+      ),
+    );
+    await Promise.all(updatedPromises);
+  }
+
   res
     .status(200)
     .json({ _id: req.params.id, message: "Order deleted successfully" });
