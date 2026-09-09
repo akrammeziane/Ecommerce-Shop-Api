@@ -83,8 +83,10 @@ const updateOrder = asyncHandler(async (req, res) => {
 
   const updatedOrder = await Order.findByIdAndUpdate(
     req.params.id,
-    { $set: { userId, guestInfo, products, totalPrice, status } },
-    { new: true },
+    {
+      $set: { userId: userId || null, guestInfo, products, totalPrice, status },
+    },
+    { new: true, runValidators: true },
   )
     .populate("userId", "name email phone address")
     .populate("products.productId", "name price image");
@@ -213,9 +215,10 @@ const createOrder = asyncHandler(async (req, res) => {
   });
 
   await order.save();
-  const createdOrder = await order
-    .populate("userId", "name email phone address")
-    .populate("products.productId", "name price image");
+  const createdOrder = await order.populate([
+    { path: "userId", select: "name email phone address" },
+    { path: "products.productId", select: "name price image" },
+  ]);
   for (const product of products) {
     await Product.findByIdAndUpdate(
       product.productId,
