@@ -1,4 +1,5 @@
 const { Product } = require("../models/Product");
+const { Order } = require("../models/Orders");
 const { AddingProduct, UpdatingProduct } = require("../models/Product");
 const asyncHandler = require("express-async-handler");
 
@@ -201,6 +202,20 @@ const deleteProduct = asyncHandler(async (req, res) => {
   }
 
   await Product.findByIdAndDelete(req.params.id);
+  const orders = await Order.find({ "products.productId": req.params.id });
+  for (const order of orders) {
+    const item = order.products.find(
+      (p) => p.productId.toString() === req.params.id,
+    );
+    if (item) {
+      const amountToDeduct = item.quantity * product.price;
+      order.products = order.products.filter(
+        (p) => p.productId.toString() !== req.params.id,
+      );
+      order.totalPrice = Math.max(0, order.totalPrice - amountToDeduct);
+      await order.save();
+    }
+  }
   res.status(200).json({
     _id: req.params.id,
     message: `Product ${product.name} with id ${req.params.id} has been deleted successfully`,
