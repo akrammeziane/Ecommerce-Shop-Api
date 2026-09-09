@@ -53,15 +53,20 @@ const getAllProducts = asyncHandler(async (req, res) => {
   const pageSize = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
   const skip = (pageNumber - 1) * pageSize;
 
-  const [products, totalProducts] = await Promise.all([
-    Product.find(filter).skip(skip).limit(pageSize),
-    Product.countDocuments(filter),
-  ]);
+  const [products, totalProducts, totalInStock, totalOutOfStock] =
+    await Promise.all([
+      Product.find(filter).skip(skip).limit(pageSize),
+      Product.countDocuments(filter),
+      Product.countDocuments({ ...filter, quantity: { $gt: 0 } }),
+      Product.countDocuments({ ...filter, quantity: { $eq: 0 } }),
+    ]);
   const totalPages = Math.ceil(totalProducts / pageSize);
 
   res.status(200).json({
     products,
     totalProducts,
+    totalInStock,
+    totalOutOfStock,
     totalPages,
     currentPage: pageNumber,
     pageSize: pageSize,
@@ -153,16 +158,16 @@ const updateProduct = asyncHandler(async (req, res) => {
   const updatedProduct = await Product.findByIdAndUpdate(
     req.params.id,
     {
-      $set:{
-      name,
-      description,
-      price,
-      image,
-      availableSizes: size,
-      availableColors: color,
-      category,
-      quantity,
-      }
+      $set: {
+        name,
+        description,
+        price,
+        image,
+        availableSizes: size,
+        availableColors: color,
+        category,
+        quantity,
+      },
     },
     { new: true },
   );
@@ -183,7 +188,7 @@ const deleteProduct = asyncHandler(async (req, res) => {
 
   await Product.findByIdAndDelete(req.params.id);
   res.status(200).json({
-    _id:req.params.id,
+    _id: req.params.id,
     message: `Product ${product.name} with id ${req.params.id} has been deleted successfully`,
   });
 });
