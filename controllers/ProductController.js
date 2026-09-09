@@ -64,9 +64,9 @@ const getAllProducts = asyncHandler(async (req, res) => {
   const [products, totalProducts, totalInStock, totalOutOfStock] =
     await Promise.all([
       Product.find(filter).skip(skip).limit(pageSize),
-      Product.countDocuments(filter),
-      Product.countDocuments({ ...filter, quantity: { $gt: 0 } }),
-      Product.countDocuments({ ...filter, quantity: { $eq: 0 } }),
+      Product.countDocuments(),
+      Product.countDocuments({ quantity: { $gt: 0 } }),
+      Product.countDocuments({ quantity: { $eq: 0 } }),
     ]);
   const totalPages = Math.ceil(totalProducts / pageSize);
 
