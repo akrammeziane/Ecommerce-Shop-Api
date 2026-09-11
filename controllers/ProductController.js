@@ -218,6 +218,8 @@ const deleteProduct = asyncHandler(async (req, res) => {
   }
   res.status(200).json({
     _id: req.params.id,
+    name: product.name,
+    status: product.status,
     message: `Product ${product.name} with id ${req.params.id} has been deleted successfully`,
   });
 });
