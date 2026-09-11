@@ -20,7 +20,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     outOfStockProductsCount,
     topSellingProducts,
     totalUsersCount,
-    newAccountRegistrations,
+    recentRegistredUsers,
     numbersOfUserswithAtLeastOneOrder,
   ] = await Promise.all([
     Order.aggregate([
@@ -80,7 +80,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       },
     ]),
     User.countDocuments(),
-    User.countDocuments({ createdAt: { $gte: startOfMonth } }),
+    User.find().sort({ createdAt: -1 }).limit(5),
     User.aggregate([
       { $match: { productsOrdered: { $exists: true, $not: { $size: 0 } } } },
       { $group: { _id: null, count: { $sum: 1 } } },
@@ -103,7 +103,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   const outOfStockProductsCountValue = outOfStockProductsCount;
   const topSellingProductsList = topSellingProducts;
   const totalUsersCountValue = totalUsersCount;
-  const newAccountRegistrationsValue = newAccountRegistrations;
+  const recentRegistredUsersList = recentRegistredUsers;
   const numbersOfUserswithAtLeastOneOrderValue =
     numbersOfUserswithAtLeastOneOrder.length > 0
       ? numbersOfUserswithAtLeastOneOrder[0].count
@@ -123,7 +123,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     outOfStockProductsCountValue,
     topSellingProductsList,
     totalUsersCountValue,
-    newAccountRegistrationsValue,
+    recentRegistredUsersList,
     numbersOfUserswithAtLeastOneOrderValue,
   });
 });
