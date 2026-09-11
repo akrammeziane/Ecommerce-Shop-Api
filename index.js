@@ -37,6 +37,7 @@ app.use("/api/users", require("./routes/Users"));
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/orders", require("./routes/Orders"));
 app.use("/api/upload", require("./routes/uploadImages"));
+app.use("/api/admin", require("./routes/adminDashboard"));
 
 // CALLING MIDDLEWARES
 app.use(NotFound);

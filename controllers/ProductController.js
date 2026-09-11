@@ -69,7 +69,7 @@ const getAllProducts = asyncHandler(async (req, res) => {
   const [products, totalProducts, totalInStock, totalOutOfStock] =
     await Promise.all([
       Product.find(filter).skip(skip).limit(pageSize),
-      Product.countDocuments(),
+      Product.countDocuments(filter),
       Product.countDocuments({ quantity: { $gt: 0 } }),
       Product.countDocuments({ quantity: { $eq: 0 } }),
     ]);

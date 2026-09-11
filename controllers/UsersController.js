@@ -33,14 +33,20 @@ const getAllUsers = asyncHandler(async (req, res) => {
   const pageSize = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
   const skip = (pageNumber - 1) * pageSize;
 
-  const [users, totalUsers] = await Promise.all([
-    User.find(filter).skip(skip).select("-password").limit(pageSize),
-    User.countDocuments(filter),
-  ]);
+  const [users, totalUsers, totalAdmins, totalRegularUsers] = await Promise.all(
+    [
+      User.find(filter).skip(skip).select("-password").limit(pageSize),
+      User.countDocuments(filter),
+      User.countDocuments({ isAdmin: true }),
+      User.countDocuments({ isAdmin: false }),
+    ],
+  );
 
   res.status(200).json({
     users,
     totalUsers,
+    totalAdmins,
+    totalRegularUsers,
     totalPages: Math.ceil(totalUsers / pageSize),
     currentPage: pageNumber,
   });
@@ -76,9 +82,11 @@ const deleteUser = asyncHandler(async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
     await User.findByIdAndDelete(req.params.id);
-    return res.status(200).json({ _id : req.params.id , message: "User removed" });
+    return res
+      .status(200)
+      .json({ _id: req.params.id, message: "User removed" });
   } else {
-    return res.status(403).json({  message: "You Are not Allowed to do that" });
+    return res.status(403).json({ message: "You Are not Allowed to do that" });
   }
 });
 /**

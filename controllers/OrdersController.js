@@ -30,19 +30,30 @@ const getAllOrders = asyncHandler(async (req, res) => {
   if (status) {
     filter.status = status;
   }
+
   const pageNumber = Math.max(1, parseInt(page, 10) || 1);
   const pageSize = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
   const skip = (pageNumber - 1) * pageSize;
 
-  const [orders, totalOrders] = await Promise.all([
-    Order.find(filter).skip(skip).limit(pageSize),
-    Order.countDocuments(),
-  ]);
+  const [orders, totalOrders, totalPendingOrders, totalRevenueResult] =
+    await Promise.all([
+      Order.find(filter).skip(skip).limit(pageSize),
+      Order.countDocuments(filter),
+      Order.countDocuments({ status: "pending" }),
+      Order.aggregate([
+        { $match: { status: { $eq: "delivered" } } },
+        { $group: { _id: null, total: { $sum: "$totalPrice" } } },
+      ]),
+    ]);
   const totalPages = Math.ceil(totalOrders / pageSize);
+  const totalRevenue =
+    totalRevenueResult.length > 0 ? totalRevenueResult[0].total : 0;
 
   res.status(200).json({
     orders,
     totalOrders,
+    totalPendingOrders,
+    totalRevenue,
     totalPages,
     currentPage: pageNumber,
   });
