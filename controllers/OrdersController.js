@@ -154,9 +154,11 @@ const deleteOrder = asyncHandler(async (req, res) => {
     await Promise.all(updatedPromises);
   }
 
-  res
-    .status(200)
-    .json({ _id: req.params.id, message: "Order deleted successfully" });
+  res.status(200).json({
+    _id: req.params.id,
+    totalPrice: deletedOrder.totalPrice,
+    message: "Order deleted successfully",
+  });
 });
 
 /**
