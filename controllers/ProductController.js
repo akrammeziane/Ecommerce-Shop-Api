@@ -186,6 +186,13 @@ const updateProduct = asyncHandler(async (req, res) => {
     },
     { new: true },
   );
+  // Update the total in stock and out of stock counts
+  const [totalInStock, totalOutOfStock] = await Promise.all([
+    Product.countDocuments({ quantity: { $gt: 0 } }),
+    Product.countDocuments({ quantity: { $eq: 0 } }),
+  ]);
+  updatedProduct.totalInStock = totalInStock;
+  updatedProduct.totalOutOfStock = totalOutOfStock;
 
   res.status(200).json(updatedProduct);
 });
