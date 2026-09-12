@@ -41,7 +41,11 @@ const getAllOrders = asyncHandler(async (req, res) => {
 
   const [orders, totalOrders, totalPendingOrders, totalRevenueResult] =
     await Promise.all([
-      Order.find(filter).skip(skip).limit(pageSize),
+      Order.find(filter)
+        .skip(skip)
+        .limit(pageSize)
+        .populate("userId", "name email phone address")
+        .populate("products.productId", "name price image"),
       Order.countDocuments(filter),
       Order.countDocuments({ status: "pending" }),
       Order.aggregate([
