@@ -191,10 +191,10 @@ const updateProduct = asyncHandler(async (req, res) => {
     Product.countDocuments({ quantity: { $gt: 0 } }),
     Product.countDocuments({ quantity: { $eq: 0 } }),
   ]);
-  updatedProduct.totalInStock = totalInStock;
-  updatedProduct.totalOutOfStock = totalOutOfStock;
 
-  res.status(200).json(updatedProduct);
+  res
+    .status(200)
+    .json({ product: updatedProduct, totalInStock, totalOutOfStock });
 });
 
 /**
