@@ -16,13 +16,17 @@ const getAllOrders = asyncHandler(async (req, res) => {
     const totalOrders = await Order.countDocuments();
     return res.status(200).json({ orders, totalOrders });
   }
-  const { userPhone, guestPhone, productId, status, page, limit } = req.query;
+  const { phone, productId, status, page, limit } = req.query;
   const filter = {};
-  if (userPhone) {
-    filter["userId.phone"] = userPhone;
-  }
-  if (guestPhone) {
-    filter["guestInfo.phone"] = guestPhone;
+  if (phone) {
+    const phoneRegex = { $regex: phone, $options: "i" };
+    const matchingUsers = await User.find({
+      phone: phoneRegex,
+    }).distinct("_id");
+    filter.$or = [
+      { userId: { $in: matchingUsers } },
+      { "guestInfo.phone": phoneRegex },
+    ];
   }
   if (productId) {
     filter["products.productId"] = productId;
@@ -37,7 +41,7 @@ const getAllOrders = asyncHandler(async (req, res) => {
 
   const [orders, totalOrders, totalPendingOrders, totalRevenueResult] =
     await Promise.all([
-      Order.find(filter).skip(skip).limit(pageSize).populate("userId", "phone"),
+      Order.find(filter).skip(skip).limit(pageSize),
       Order.countDocuments(filter),
       Order.countDocuments({ status: "pending" }),
       Order.aggregate([
