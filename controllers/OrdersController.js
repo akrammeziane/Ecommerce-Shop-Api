@@ -114,12 +114,19 @@ const updateOrder = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: "Order not found" });
   }
   if (previousStatus !== "cancelled" && status === "cancelled") {
-    for (const product of updatedOrder.products) {
-      await Product.findByIdAndUpdate(
-        product.productId,
-        { $inc: { quantity: product.quantity } },
-        { new: true },
-      );
+    const bulkOperations = updatedOrder.products.map((product) => ({
+      updateOne: {
+        filter: {
+          _id: product.productId._id || product.productId,
+        },
+        update: {
+          $inc: { quantity: product.quantity },
+        },
+      },
+    }));
+
+    if (bulkOperations.length > 0) {
+      await Product.bulkWrite(bulkOperations);
     }
   }
   if (
