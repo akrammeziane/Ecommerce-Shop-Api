@@ -85,7 +85,7 @@ const getOrderById = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const updateOrder = asyncHandler(async (req, res) => {
-  const { userId, guestInfo, products, totalPrice, status } = req.body;
+  const { status } = req.body;
 
   // Validate the order data
   const validationError = updatingOrder(req.body);
@@ -103,12 +103,10 @@ const updateOrder = asyncHandler(async (req, res) => {
   const updatedOrder = await Order.findByIdAndUpdate(
     req.params.id,
     {
-      $set: { userId: userId || null, guestInfo, products, totalPrice, status },
+      $set: { status },
     },
     { new: true, runValidators: true },
-  )
-    .populate("userId", "name email phone address")
-    .populate("products.productId", "name price image");
+  );
 
   if (!updatedOrder) {
     return res.status(404).json({ message: "Order not found" });
