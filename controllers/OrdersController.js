@@ -85,7 +85,7 @@ const getOrderById = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const updateOrder = asyncHandler(async (req, res) => {
-  const { userId, status } = req.body;
+  const { status } = req.body;
 
   // Validate the order data
   const validationError = updatingOrder(req.body);
@@ -103,7 +103,7 @@ const updateOrder = asyncHandler(async (req, res) => {
   const updatedOrder = await Order.findByIdAndUpdate(
     req.params.id,
     {
-      $set: { userId: userId || null, status },
+      $set: { status },
     },
     { new: true, runValidators: true },
   )
@@ -122,10 +122,14 @@ const updateOrder = asyncHandler(async (req, res) => {
       );
     }
   }
-  if (userId && status === "delivered" && previousStatus !== "delivered") {
+  if (
+    req.body.userId &&
+    status === "delivered" &&
+    previousStatus !== "delivered"
+  ) {
     for (let i = 0; i < updatedOrder.products.length; i++) {
       await User.findByIdAndUpdate(
-        userId,
+        req.body.userId,
         { $push: { productsBought: updatedOrder.products[i].productId } },
         { new: true },
       );
