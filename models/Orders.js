@@ -65,7 +65,7 @@ const Order = mongoose.model("Order", OrdersSchema);
 
 const updatingOrder = (order) => {
   const orderValidationSchema = joi.object({
-    userId: joi.string(),
+    userId: Joi.string().allow(null),
     guestInfo: joi.object({
       name: joi.string().min(2).max(100).trim(),
       email: joi.string().email().lowercase(),
