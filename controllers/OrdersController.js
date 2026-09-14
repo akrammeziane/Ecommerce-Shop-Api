@@ -143,21 +143,21 @@ const updateOrder = asyncHandler(async (req, res) => {
       { $push: { productsBought: { $each: productIds } } },
       { new: true },
     );
-    if (
-      updatedOrder.userId &&
-      status !== "delivered" &&
-      previousStatus === "delivered"
-    ) {
-      const userId = updatedOrder.userId._id;
-      const productIds = updatedOrder.products.map(
-        (item) => item.productId._id || item.productId,
-      );
-      await User.findByIdAndUpdate(
-        userId,
-        { $pull: { productsBought: { $in: productIds } } },
-        { new: true },
-      );
-    }
+  }
+  if (
+    updatedOrder.userId &&
+    status !== "delivered" &&
+    previousStatus === "delivered"
+  ) {
+    const userId = updatedOrder.userId._id;
+    const productIds = updatedOrder.products.map(
+      (item) => item.productId._id || item.productId,
+    );
+    await User.findByIdAndUpdate(
+      userId,
+      { $pull: { productsBought: { $in: productIds } } },
+      { new: true },
+    );
   }
 
   res.status(200).json(updatedOrder);
