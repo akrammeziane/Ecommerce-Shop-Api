@@ -37,8 +37,8 @@ const getAllUsers = asyncHandler(async (req, res) => {
     [
       User.find(filter).skip(skip).select("-password").limit(pageSize),
       User.countDocuments(filter),
-      User.countDocuments({ isAdmin: true }),
-      User.countDocuments({ isAdmin: false }),
+      User.countDocuments({ ...filter, isAdmin: true }),
+      User.countDocuments({ ...filter, isAdmin: false }),
     ],
   );
 
