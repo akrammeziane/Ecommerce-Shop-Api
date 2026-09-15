@@ -34,11 +34,15 @@ const sendResetPasswordEmail = asyncHandler(async (req, res) => {
   const link = `http://localhost:5173/reset-password/${user._id}/${token}`;
 
   const transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS.replace(/\s+/g, ""),
     },
+    family: 4,
+    connectionTimeout: 10000,
   });
 
   const mailOptions = {
