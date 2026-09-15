@@ -29,7 +29,7 @@ const sendResetPasswordEmail = asyncHandler(async (req, res) => {
 
   const link = `http://localhost:5173/reset-password/${user._id}/${token}`;
 
-  const transporter = nodemailer.createTransporter({
+  const transporter = nodemailer.createTransport({
     service: "gmail.com",
     auth: {
       user: process.env.EMAIL_USER,
@@ -50,8 +50,6 @@ const sendResetPasswordEmail = asyncHandler(async (req, res) => {
       .status(500)
       .json({ message: "Error sending email", error: error.message });
   }
-
-  res.status(200).json({ message: "Reset password email sent" });
 });
 
 const getResetPasswordPage = asyncHandler(async (req, res) => {
