@@ -14,7 +14,7 @@ router
   .route("/:id")
   .get(verifyAdmin, getUserById)
   .delete(verifyAuth, deleteUser)
-  .put(verifyAdmin, editUser)
-  .put(verifyAuth, changePassword);
+  .put(verifyAuth, editUser);
+router.put("/:id/change-password", verifyAuth, changePassword);
 
 module.exports = router;

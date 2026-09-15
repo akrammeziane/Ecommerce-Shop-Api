@@ -120,20 +120,26 @@ const editUser = asyncHandler(async (req, res) => {
 
 /**
  * @desc    Change user password
- * @route   PUT /api/users/change-password
+ * @route   PUT /api/users/:id/change-password
  * @access  Private
  */
 
 const changePassword = asyncHandler(async (req, res) => {
+  const error = ValidChangePassword(req.body);
+  if (error) {
+    return res.status(400).json({ message: error.details[0].message });
+  }
+  const userFromToken = req.user;
+  if (!userFromToken) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  if (userFromToken.id !== req.params.id) {
+    return res.status(403).json({ message: "You are not allowed to do that" });
+  }
   const { currentPassword, newPassword } = req.body;
   const user = await User.findById(req.params.id);
   if (!user) {
     return res.status(404).json({ message: "User not found" });
-  }
-
-  const error = ValidChangePassword(req.body);
-  if (error) {
-    return res.status(400).json({ message: error.details[0].message });
   }
   const isMatch = await bcrypt.compare(currentPassword, user.password);
   if (!isMatch) {
