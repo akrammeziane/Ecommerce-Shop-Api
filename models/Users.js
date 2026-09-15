@@ -93,5 +93,26 @@ const ValidRegister = (user) => {
   const { error } = registerValidationSchema.validate(user);
   return error;
 };
+const ValidEmail = (user) => {
+  const emailValidationSchema = joi.object({
+    email: joi.string().email().trim().lowercase().required(),
+  });
+  const { error } = emailValidationSchema.validate(user);
+  return error;
+};
+const ValidPassword = (user) => {
+  const passwordValidationSchema = joi.object({
+    password: passwordComplexity().required(),
+  });
+  const { error } = passwordValidationSchema.validate(user);
+  return error;
+};
 
-module.exports = { User, UpdatingUser, ValidLogin, ValidRegister };
+module.exports = {
+  User,
+  UpdatingUser,
+  ValidLogin,
+  ValidRegister,
+  ValidEmail,
+  ValidPassword,
+};
