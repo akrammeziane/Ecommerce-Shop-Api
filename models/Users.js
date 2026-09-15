@@ -108,6 +108,15 @@ const ValidPassword = (user) => {
   return error;
 };
 
+const ValidChangePassword = (user) => {
+  const changePasswordValidationSchema = joi.object({
+    currentPassword: passwordComplexity().required(),
+    newPassword: passwordComplexity().required(),
+  });
+  const { error } = changePasswordValidationSchema.validate(user);
+  return error;
+};
+
 module.exports = {
   User,
   UpdatingUser,
@@ -115,4 +124,5 @@ module.exports = {
   ValidRegister,
   ValidEmail,
   ValidPassword,
+  ValidChangePassword,
 };

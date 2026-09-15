@@ -1,5 +1,6 @@
 const asyncHandler = require("express-async-handler");
-const { User, UpdatingUser } = require("../models/Users");
+const { User, UpdatingUser, ValidChangePassword } = require("../models/Users");
+const bcrypt = require("bcryptjs");
 
 /**
  * @desc    Get all users
@@ -116,9 +117,39 @@ const editUser = asyncHandler(async (req, res) => {
   }
   res.status(200).json(updatedUser);
 });
+
+/**
+ * @desc    Change user password
+ * @route   PUT /api/users/change-password
+ * @access  Private
+ */
+
+const changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const user = await User.findById(req.params.id);
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  const error = ValidChangePassword(req.body);
+  if (error) {
+    return res.status(400).json({ message: error.details[0].message });
+  }
+  const isMatch = await bcrypt.compare(currentPassword, user.password);
+  if (!isMatch) {
+    return res.status(400).json({ message: "Current password is incorrect" });
+  }
+  const salt = await bcrypt.genSalt(12);
+  const hashedPassword = await bcrypt.hash(newPassword, salt);
+  user.password = hashedPassword;
+  await user.save();
+  res.status(200).json({ message: "Password changed successfully" });
+});
+
 module.exports = {
   getAllUsers,
   getUserById,
   deleteUser,
   editUser,
+  changePassword,
 };
