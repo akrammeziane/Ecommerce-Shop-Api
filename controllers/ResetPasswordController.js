@@ -1,18 +1,15 @@
 const { User, ValidEmail, ValidPassword } = require("../models/Users");
 const asyncHandler = require("express-async-handler");
-const nodemailer = require("nodemailer");
 const jwt = require("jsonwebtoken");
+const { Resend } = require("resend");
 const bcrypt = require("bcryptjs");
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // @desc    Reset user password
 // @route   POST /api/reset-password
 // @access  Public
 
 const sendResetPasswordEmail = asyncHandler(async (req, res) => {
-  console.log("Checking Env Vars:", {
-    userExists: !!process.env.EMAIL_USER,
-    passExists: !!process.env.EMAIL_PASS,
-  });
   const { email } = req.body;
 
   const validationError = ValidEmail(req.body);
@@ -26,6 +23,7 @@ const sendResetPasswordEmail = asyncHandler(async (req, res) => {
   if (!user) {
     return res.status(404).json({ message: "User not found" });
   }
+
   const secret = process.env.JWT_SECRET + user.password;
   const token = jwt.sign({ email: user.email, id: user._id }, secret, {
     expiresIn: "15m",
@@ -33,30 +31,19 @@ const sendResetPasswordEmail = asyncHandler(async (req, res) => {
 
   const link = `http://localhost:5173/reset-password/${user._id}/${token}`;
 
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS.replace(/\s+/g, ""),
-    },
-    family: 4,
-    connectionTimeout: 10000,
-  });
-
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: user.email,
-    subject: "Reset Password",
-    html: `<p>Click the link below to reset your password:</p><a href="${link}">Reset Password</a>`,
-  };
   try {
-    await transporter.sendMail(mailOptions);
+    await resend.emails.send({
+      from: "onboarding@resend.dev",
+      to: user.email,
+      subject: "Reset Password",
+      html: `<p>Click the link below to reset your password:</p><a href="${link}">Reset Password</a>`,
+    });
+
     return res
       .status(200)
       .json({ message: "Reset password email sent successfully" });
   } catch (error) {
+    console.error("Resend Error:", error);
     return res
       .status(500)
       .json({ message: "Error sending email", error: error.message });
