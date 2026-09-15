@@ -9,6 +9,10 @@ const bcrypt = require("bcryptjs");
 // @access  Public
 
 const sendResetPasswordEmail = asyncHandler(async (req, res) => {
+  console.log("Checking Env Vars:", {
+    userExists: !!process.env.EMAIL_USER,
+    passExists: !!process.env.EMAIL_PASS,
+  });
   const { email } = req.body;
 
   const validationError = ValidEmail(req.body);
@@ -30,9 +34,7 @@ const sendResetPasswordEmail = asyncHandler(async (req, res) => {
   const link = `http://localhost:5173/reset-password/${user._id}/${token}`;
 
   const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
+    service: "gmail",
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS.replace(/\s+/g, ""),
