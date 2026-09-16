@@ -59,28 +59,26 @@ const registerUser = asyncHandler(async (req, res) => {
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  // Check if the user exists
-  const user = await User.findOne({ email }).select("_id");
+  const user = await User.findOne({ email }).select("+password isAdmin");
   if (!user) {
     return res.status(400).json({ message: "Invalid credentials" });
   }
 
-  // Check if the password is correct
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
     return res.status(400).json({ message: "Invalid credentials" });
   }
 
-  // Generate a JWT token
   const token = jwt.sign(
     { id: user._id, isAdmin: user.isAdmin },
     process.env.JWT_SECRET,
-    {
-      expiresIn: "24h",
-    },
+    { expiresIn: "24h" },
   );
 
-  res.status(200).json({ token, user });
+  res.status(200).json({
+    token,
+    user: { _id: user._id },
+  });
 });
 
 module.exports = {
