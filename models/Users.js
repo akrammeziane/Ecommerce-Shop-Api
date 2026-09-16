@@ -18,6 +18,7 @@ const UsersSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
+      unique: true,
       minlength: 10,
       maxlength: 15,
       trim: true,
@@ -48,6 +49,12 @@ const UsersSchema = new mongoose.Schema(
         ref: "Product",
       },
     ],
+    orders: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Order",
+      },
+    ],
   },
   { timestamps: true },
 );
@@ -69,7 +76,12 @@ const UpdatingUser = (user) => {
   const userValidationSchema = joi.object({
     name: joi.string().min(2).max(100).trim(),
     email: joi.string().email().trim().lowercase(),
-    phone: joi.string().min(10).max(15).trim(),
+    phone: joi
+      .string()
+      .trim()
+      .min(10)
+      .max(15)
+      .pattern(/^\+?[0-9]+$/),
     address: joi.string().min(5).max(200).trim(),
   });
   const { error } = userValidationSchema.validate(user);

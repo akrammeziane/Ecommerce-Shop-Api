@@ -12,7 +12,7 @@ const { verifyAuth, verifyAdmin } = require("../middlewares/auth/VerifyAuth");
 router.route("/").get(verifyAdmin, getAllUsers);
 router
   .route("/:id")
-  .get(verifyAdmin, getUserById)
+  .get(verifyAuth, getUserById)
   .delete(verifyAuth, deleteUser)
   .put(verifyAuth, editUser);
 router.put("/:id/change-password", verifyAuth, changePassword);

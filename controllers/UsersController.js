@@ -59,10 +59,14 @@ const getAllUsers = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const getUserById = asyncHandler(async (req, res) => {
+  if (req.user?.id !== req.params.id) {
+    return res.status(403).json({ message: "You are not allowed to do that" });
+  }
   const user = await User.findById(req.params.id)
     .populate("productsOrdered")
     .select("-password")
-    .populate("productsBought");
+    .populate("productsBought")
+    .populate("orders");
   if (!user) {
     console.log("User not found");
     return res.status(404).json({ message: "User not found" });
@@ -98,6 +102,9 @@ const deleteUser = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const editUser = asyncHandler(async (req, res) => {
+  if (req.user?.id !== req.params.id) {
+    return res.status(403).json({ message: "You are not allowed to do that" });
+  }
   const user = await User.findById(req.params.id).select("-password");
   if (!user) {
     return res.status(404).json({ message: "User not found" });
@@ -107,10 +114,30 @@ const editUser = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: error.details[0].message });
   }
   const { name, email, phone, address } = req.body;
+
+  const emailExists = await User.exists({
+    email,
+    _id: { $ne: req.params.id },
+  });
+
+  if (emailExists) {
+    return res.status(400).json({ message: "Email is already registered" });
+  }
+
+  const phoneExists = await User.exists({
+    phone,
+    _id: { $ne: req.params.id },
+  });
+
+  if (phoneExists) {
+    return res
+      .status(400)
+      .json({ message: "Phone number is already registered" });
+  }
   const updatedUser = await User.findByIdAndUpdate(
     req.params.id,
     { $set: { name, email, phone, address } },
-    { new: true },
+    { new: true, runValidators: true },
   );
   if (!updatedUser) {
     return res.status(404).json({ message: "User not found" });
