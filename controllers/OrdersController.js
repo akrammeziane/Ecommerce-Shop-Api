@@ -71,6 +71,20 @@ const getAllOrders = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Get logged-in user's orders
+ * @route   GET /api/orders/my-orders
+ * @access  private
+ */
+
+const getMyOrders = asyncHandler(async (req, res) => {
+  const orders = await Order.find({ userId: req.user.id })
+    .populate("userId", "name email phone address")
+    .populate("products.productId", "name price image")
+    .sort({ createdAt: -1 });
+  res.status(200).json(orders);
+});
+
+/**
  * @desc    Get order by id
  * @route   GET /api/orders/:id
  * @access  Private
@@ -313,6 +327,7 @@ const createOrder = asyncHandler(async (req, res) => {
 
 module.exports = {
   getAllOrders,
+  getMyOrders,
   createOrder,
   updateOrder,
   deleteOrder,
