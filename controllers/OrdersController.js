@@ -292,13 +292,19 @@ const createOrder = asyncHandler(async (req, res) => {
     );
   }
   if (userId) {
-    for (let i = 0; i < products.length; i++) {
-      await User.findByIdAndUpdate(
-        userId,
-        { $push: { productsOrdered: createdOrder.products[i].productId } },
-        { new: true },
-      );
-    }
+    const productIds = createdOrder.products.map(
+      (item) => item.productId || item.productId._id,
+    );
+    await User.findByIdAndUpdate(
+      userId,
+      {
+        $push: {
+          productsOrdered: { $each: productIds },
+          orders: createdOrder._id,
+        },
+      },
+      { new: true },
+    );
   }
   res.status(201).json(createdOrder);
 });
