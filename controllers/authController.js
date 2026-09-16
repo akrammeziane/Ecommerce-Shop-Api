@@ -60,7 +60,7 @@ const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
   // Check if the user exists
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email }).select("_id");
   if (!user) {
     return res.status(400).json({ message: "Invalid credentials" });
   }
@@ -76,7 +76,7 @@ const loginUser = asyncHandler(async (req, res) => {
     { id: user._id, isAdmin: user.isAdmin },
     process.env.JWT_SECRET,
     {
-      expiresIn: "5h",
+      expiresIn: "24h",
     },
   );
 
