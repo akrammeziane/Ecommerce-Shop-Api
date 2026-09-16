@@ -16,8 +16,11 @@ const getAllOrders = asyncHandler(async (req, res) => {
     const totalOrders = await Order.countDocuments();
     return res.status(200).json({ orders, totalOrders });
   }
-  const { phone, productId, status, page, limit } = req.query;
+  const { userId, phone, productId, status, page, limit } = req.query;
   const filter = {};
+  if (userId) {
+    filter.userId = userId;
+  }
   if (phone) {
     const phoneRegex = { $regex: phone, $options: "i" };
     const matchingUsers = await User.find({
@@ -300,7 +303,6 @@ const createOrder = asyncHandler(async (req, res) => {
       {
         $push: {
           productsOrdered: { $each: productIds },
-          orders: createdOrder._id,
         },
       },
       { new: true },

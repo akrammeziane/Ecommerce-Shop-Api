@@ -65,8 +65,8 @@ const getUserById = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id)
     .populate("productsOrdered")
     .select("-password")
-    .populate("productsBought")
-    .populate("orders");
+    .populate("productsBought");
+
   if (!user) {
     console.log("User not found");
     return res.status(404).json({ message: "User not found" });
