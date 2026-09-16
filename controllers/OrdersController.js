@@ -77,11 +77,25 @@ const getAllOrders = asyncHandler(async (req, res) => {
  */
 
 const getMyOrders = asyncHandler(async (req, res) => {
-  const orders = await Order.find({ userId: req.user.id })
-    .populate("userId", "name email phone address")
-    .populate("products.productId", "name price image")
-    .sort({ createdAt: -1 });
-  res.status(200).json(orders);
+  const { page, limit } = req.query;
+  const pageNumber = Math.max(1, parseInt(page, 10) || 1);
+  const pageSize = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+  const skip = (pageNumber - 1) * pageSize;
+  const [orders, totalOrders] = await Promise.all([
+    Order.find({ userId: req.user.id })
+      .skip(skip)
+      .limit(pageSize)
+      .populate("products.productId", "name price image")
+      .sort({ createdAt: -1 }),
+    Order.countDocuments({ userId: req.user.id }),
+  ]);
+  const totalPages = Math.ceil(totalOrders / pageSize);
+  res.status(200).json({
+    orders,
+    totalOrders,
+    totalPages,
+    currentPage: pageNumber,
+  });
 });
 
 /**
