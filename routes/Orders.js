@@ -17,14 +17,14 @@ router
   .get(verifyAdmin, getAllOrders)
   .post(optionalAuth, createOrder);
 
+// GET my orders
+router.route("/my-orders").get(verifyAuth, getMyOrders);
+
 // GET, UPDATE, DELETE an order by ID
 router
   .route("/:id")
   .get(verifyAdmin, getOrderById)
   .put(verifyAdmin, updateOrder)
   .delete(verifyAdmin, deleteOrder);
-
-// GET my orders
-router.route("/my-orders").get(verifyAuth, getMyOrders);
 
 module.exports = router;
