@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const {
   getAllProducts,
+  getLatestProducts,
   getProductById,
   createProduct,
   updateProduct,
@@ -11,6 +12,8 @@ const { verifyAdmin } = require("../middlewares/auth/VerifyAuth");
 
 // GET all products
 router.route("/").get(getAllProducts).post(verifyAdmin, createProduct);
+// GET latest products
+router.route("/latest").get(getLatestProducts);
 
 // GET, UPDATE, DELETE a product by ID
 router

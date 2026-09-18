@@ -85,6 +85,16 @@ const getAllProducts = asyncHandler(async (req, res) => {
     pageSize: pageSize,
   });
 });
+/**
+ * @desc    Get latestproducts
+ * @route   GET /api/products
+ * @access  Public
+ */
+
+const getLatestProducts = asyncHandler(async (req, res) => {
+  const latestProducts = await Product.find().sort({ createdAt: -1 }).limit(6);
+  res.status(200).json(latestProducts);
+});
 
 /**
  * @desc    Get product by id
@@ -232,6 +242,7 @@ const deleteProduct = asyncHandler(async (req, res) => {
 });
 module.exports = {
   getAllProducts,
+  getLatestProducts,
   getProductById,
   createProduct,
   updateProduct,
