@@ -57,7 +57,7 @@ const getAllProducts = asyncHandler(async (req, res) => {
     filter.availableSizes = size;
   }
   if (color) {
-    filter.availableColors = color;
+    filter.availableColors = { $regex: color, $options: "i" };
   }
   if (quantity) {
     filter.quantity = Number(quantity);
