@@ -315,13 +315,25 @@ const createOrder = asyncHandler(async (req, res) => {
     { path: "userId", select: "name email phone address" },
     { path: "products.productId", select: "name price image" },
   ]);
-  for (const product of products) {
-    await Product.findByIdAndUpdate(
-      product.productId,
-      { $inc: { quantity: -product.quantity } },
-      { new: true },
-    );
+
+  const bulkOperations = products.map((product) => ({
+    updateOne: {
+      filter: {
+        _id: product.productId,
+        quantity: { $gte: product.quantity },
+      },
+      update: { $inc: { quantity: -product.quantity } },
+    },
+  }));
+
+  const result = await Product.bulkWrite(bulkOperations);
+
+  if (result.modifiedCount !== products.length) {
+    return res.status(400).json({
+      message: "Some products could not be updated due to insufficient stock",
+    });
   }
+
   if (userId) {
     const productIds = createdOrder.products.map(
       (item) => item.productId || item.productId._id,
