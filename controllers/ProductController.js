@@ -119,12 +119,13 @@ const createProduct = asyncHandler(async (req, res) => {
     name,
     description,
     price,
-    image,
     availableSizes,
     availableColors,
     category,
     quantity,
   } = req.body;
+  console.log("the image file:", req.file);
+  const image = req.file ? req.file.path : null;
 
   // Validate the product data
   const validationError = AddingProduct(req.body);

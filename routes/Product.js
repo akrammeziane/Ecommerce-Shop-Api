@@ -9,9 +9,14 @@ const {
   deleteProduct,
 } = require("../controllers/ProductController");
 const { verifyAdmin } = require("../middlewares/auth/VerifyAuth");
+const upload = require("../middlewares/imageUploader");
 
 // GET all products
-router.route("/").get(getAllProducts).post(verifyAdmin, createProduct);
+router
+  .route("/")
+  .get(getAllProducts)
+  .post(verifyAdmin, upload.single("image"), createProduct);
+
 // GET latest products
 router.route("/latest").get(getLatestProducts);
 
