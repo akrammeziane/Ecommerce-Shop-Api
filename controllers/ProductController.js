@@ -126,7 +126,7 @@ const createProduct = asyncHandler(async (req, res) => {
       .status(400)
       .json({ message: "Invalid JSON format for sizes or colors" });
   }
-
+  const imagePath = req.file ? req.file.path : undefined;
   const productData = {
     name,
     description,
@@ -135,8 +135,9 @@ const createProduct = asyncHandler(async (req, res) => {
     quantity,
     availableSizes,
     availableColors,
-    image: req.file ? req.file.path : undefined,
+    image: imagePath,
   };
+  console.log("the image path is", imagePath);
 
   const validationError = AddingProduct(productData);
   if (validationError) {
@@ -149,7 +150,7 @@ const createProduct = asyncHandler(async (req, res) => {
     name,
     description,
     price,
-    image,
+    image: imagePath,
     availableSizes,
     availableColors,
     category,
