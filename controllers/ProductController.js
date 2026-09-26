@@ -2,6 +2,7 @@ const { Product } = require("../models/Product");
 const { Order } = require("../models/Orders");
 const { AddingProduct, UpdatingProduct } = require("../models/Product");
 const asyncHandler = require("express-async-handler");
+const cloudinary = require("../config/cloudiary");
 
 /**
  * @desc    Get all products
@@ -126,7 +127,8 @@ const createProduct = asyncHandler(async (req, res) => {
       .status(400)
       .json({ message: "Invalid JSON format for sizes or colors" });
   }
-  const imagePath = req.file ? req.file.path : undefined;
+  const image = req.file ? req.file.path : undefined;
+  const imagePublicId = req.file ? req.file.filename : undefined;
   const productData = {
     name,
     description,
@@ -135,9 +137,9 @@ const createProduct = asyncHandler(async (req, res) => {
     quantity,
     availableSizes,
     availableColors,
-    image: imagePath,
+    image,
+    imagePublicId,
   };
-  console.log("the image path is", imagePath);
 
   const validationError = AddingProduct(productData);
   if (validationError) {
@@ -150,7 +152,8 @@ const createProduct = asyncHandler(async (req, res) => {
     name,
     description,
     price,
-    image: imagePath,
+    image,
+    imagePublicId,
     availableSizes,
     availableColors,
     category,
@@ -167,19 +170,35 @@ const createProduct = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const updateProduct = asyncHandler(async (req, res) => {
-  const {
+  const { name, description, price, category, quantity } = req.body;
+  let { availableColors, availableSizes } = req.body;
+
+  try {
+    availableColors = JSON.parse(availableColors);
+    availableSizes = JSON.parse(availableSizes);
+  } catch {
+    return res
+      .status(400)
+      .json({ message: "Invalid JSON format for sizes or colors" });
+  }
+
+  const image = req.file ? req.file.path : undefined;
+  const imagePublicId = req.file ? req.file.filename : undefined;
+
+  const productData = {
     name,
     description,
     price,
-    image,
-    availableSizes: size,
-    availableColors: color,
     category,
     quantity,
-  } = req.body;
+    availableSizes,
+    availableColors,
+    image,
+    imagePublicId,
+  };
 
   // Validate the product data
-  const validationError = UpdatingProduct(req.body);
+  const validationError = UpdatingProduct(productData);
   if (validationError) {
     return res
       .status(400)
@@ -190,6 +209,15 @@ const updateProduct = asyncHandler(async (req, res) => {
   if (!product) {
     return res.status(404).json({ message: "Product not found" });
   }
+  if (req.file) {
+    if (product.imagePublicId && image) {
+      try {
+        await cloudinary.uploader.destroy(product.imagePublicId);
+      } catch (error) {
+        console.error("Error deleting image from Cloudinary:", error);
+      }
+    }
+  }
 
   const updatedProduct = await Product.findByIdAndUpdate(
     req.params.id,
@@ -199,8 +227,9 @@ const updateProduct = asyncHandler(async (req, res) => {
         description,
         price,
         image,
-        availableSizes: size,
-        availableColors: color,
+        imagePublicId,
+        availableSizes,
+        availableColors,
         category,
         quantity,
         status: quantity > 0 ? "In Stock" : "Out Of Stock",

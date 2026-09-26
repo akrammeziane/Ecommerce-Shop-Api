@@ -24,7 +24,7 @@ router.route("/latest").get(getLatestProducts);
 router
   .route("/:id")
   .get(getProductById)
-  .put(verifyAdmin, updateProduct)
+  .put(verifyAdmin, upload.single("image"), updateProduct)
   .delete(verifyAdmin, deleteProduct);
 
 module.exports = router;

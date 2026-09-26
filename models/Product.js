@@ -26,6 +26,11 @@ const ProductSchema = new mongoose.Schema(
       default: "https://via.placeholder.com/150",
       trim: true,
     },
+    imagePublicId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     availableSizes: {
       type: [String],
       enum: ["S", "M", "L", "XL", "XXL", "XXXL"],
@@ -63,6 +68,7 @@ const AddingProduct = (product) => {
     description: joi.string().min(2).max(1000).trim(),
     price: joi.number().min(0).required(),
     image: joi.string().trim(),
+    imagePublicId: joi.string().trim(),
     availableSizes: joi
       .array()
       .items(joi.string().valid("S", "M", "L", "XL", "XXL", "XXXL"))
@@ -86,6 +92,7 @@ const UpdatingProduct = (product) => {
     description: joi.string().min(2).max(1000).trim(),
     price: joi.number().min(0),
     image: joi.string().trim(),
+    imagePublicId: joi.string().trim(),
     availableSizes: joi
       .array()
       .items(joi.string().valid("S", "M", "L", "XL", "XXL", "XXXL")),
