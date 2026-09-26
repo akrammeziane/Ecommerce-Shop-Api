@@ -115,20 +115,30 @@ const getProductById = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const createProduct = asyncHandler(async (req, res) => {
-  const {
+  const { name, description, price, category, quantity } = req.body;
+  let { availableSizes, availableColors } = req.body;
+
+  try {
+    availableSizes = JSON.parse(availableSizes);
+    availableColors = JSON.parse(availableColors);
+  } catch {
+    return res
+      .status(400)
+      .json({ message: "Invalid JSON format for sizes or colors" });
+  }
+
+  const productData = {
     name,
     description,
     price,
-    availableSizes,
-    availableColors,
     category,
     quantity,
-  } = req.body;
-  console.log("the image file:", req.file);
-  const image = req.file ? req.file.path : null;
+    availableSizes,
+    availableColors,
+    image: req.file ? req.file.path : undefined,
+  };
 
-  // Validate the product data
-  const validationError = AddingProduct(req.body);
+  const validationError = AddingProduct(productData);
   if (validationError) {
     return res
       .status(400)
