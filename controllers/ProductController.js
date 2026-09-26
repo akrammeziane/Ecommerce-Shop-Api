@@ -260,6 +260,13 @@ const deleteProduct = asyncHandler(async (req, res) => {
   }
 
   await Product.findByIdAndDelete(req.params.id);
+  if (product.imagePublicId) {
+    try {
+      await cloudinary.uploader.destroy(product.imagePublicId);
+    } catch (error) {
+      console.error("Error deleting image from Cloudinary:", error);
+    }
+  }
   const orders = await Order.find({ "products.productId": req.params.id });
   for (const order of orders) {
     const item = order.products.find(
